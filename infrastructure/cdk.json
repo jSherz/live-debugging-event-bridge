@@ -1,0 +1,18 @@
+{
+  "app": "ts-node -P tsconfig.json --prefer-ts-exts bin/live-debugging-event-bridge.ts",
+  "output": "cdk.out",
+  "watch": {
+    "include": ["bin/**/*.ts", "lib/**/*.ts", "test/**/*.ts"],
+    "exclude": [
+      ".yarn",
+      "README.md",
+      "cdk*.json",
+      "**/*.d.ts",
+      "**/*.js",
+      "tsconfig.json",
+      "package*.json",
+      "yarn.lock",
+      "node_modules"
+    ]
+  }
+}
