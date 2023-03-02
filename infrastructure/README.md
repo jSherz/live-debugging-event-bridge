@@ -2,6 +2,9 @@
 
 See the README in the parent directory.
 
+**NB:** this API has no authentication. If you use this project, it is your
+responsibility to add it.
+
 ## Usage
 
 Deploy the project:
@@ -16,5 +19,5 @@ corepack enable # if not already run
 yarn install
 
 # Deploy it!
-npx --no cdk deploy
+yarn deploy
 ```

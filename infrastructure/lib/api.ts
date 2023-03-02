@@ -21,17 +21,19 @@ import { Construct } from "constructs";
 import * as path from "path";
 
 export class Api extends Construct {
+  public readonly usersTable: ITable;
+
+  public readonly callbackUrl: string;
+
+  public readonly id: string;
+
   constructor(scope: Construct, id: string) {
     super(scope, id);
 
-    // api.addRoute("sendmessage", {
-    //   integration: new WebSocketLambdaIntegration("send-message-integration"),
-    // });
+    this.usersTable = this.createUsersTable();
 
-    const usersTable = this.createUsersTable();
-
-    const connectLambda = this.createConnectLambda(usersTable);
-    const disconnectLambda = this.createDisconnectLambda(usersTable);
+    const connectLambda = this.createConnectLambda(this.usersTable);
+    const disconnectLambda = this.createDisconnectLambda(this.usersTable);
 
     const api = new WebSocketApi(this, "live-debugging-api", {
       connectRouteOptions: {
@@ -48,11 +50,15 @@ export class Api extends Construct {
       },
     });
 
+    this.id = api.apiId;
+
     const stage = new WebSocketStage(this, "live-debugging-api-stage", {
       webSocketApi: api,
       autoDeploy: true,
       stageName: "live",
     });
+
+    this.callbackUrl = stage.callbackUrl;
 
     new CfnOutput(this, "WebSocketApiUrl", {
       value: stage.url,

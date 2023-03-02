@@ -1,9 +1,11 @@
 import {
   AttributeValue,
+  ConditionalCheckFailedException,
   DynamoDBClient,
   GetItemCommand,
   PutItemCommand,
 } from "@aws-sdk/client-dynamodb";
+import { sleep } from "../../util/sleep";
 import { USERS } from "../../util/table-keys";
 
 const TABLE_NAME = process.env.TABLE_NAME;
@@ -43,46 +45,69 @@ const client = new DynamoDBClient({});
 export async function handler(event: IEvent) {
   console.log("handling disconnect event", JSON.stringify(event));
 
-  const existingUsers = await client.send(
-    new GetItemCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        id: {
-          S: USERS,
-        },
-      },
-    }),
-  );
+  let successOrFailed = false;
 
-  if (existingUsers.Item) {
-    await client.send(
-      new PutItemCommand({
+  while (!successOrFailed) {
+    const existingUsers = await client.send(
+      new GetItemCommand({
         TableName: TABLE_NAME,
-        Item: {
+        Key: {
           id: {
             S: USERS,
           },
-          users: {
-            L: (existingUsers.Item.users.L as AttributeValue[]).filter(
-              (value) => {
-                return (
-                  value.M?.connectionId.S !== event.requestContext.connectionId
-                );
-              },
-            ),
-          },
-          updatedAt: {
-            S: new Date().toISOString(),
-          },
-        },
-        ConditionExpression: "updatedAt = :updatedAt",
-        ExpressionAttributeValues: {
-          ":updatedAt": existingUsers.Item.updatedAt,
         },
       }),
     );
-  } else {
-    console.log("no existing users - doing nothing");
+
+    if (existingUsers.Item) {
+      try {
+        await client.send(
+          new PutItemCommand({
+            TableName: TABLE_NAME,
+            Item: {
+              id: {
+                S: USERS,
+              },
+              users: {
+                L: (existingUsers.Item.users.L as AttributeValue[]).filter(
+                  (value) => {
+                    return (
+                      value.M?.connectionId.S !==
+                      event.requestContext.connectionId
+                    );
+                  },
+                ),
+              },
+              updatedAt: {
+                S: new Date().toISOString(),
+              },
+            },
+            ConditionExpression: "updatedAt = :updatedAt",
+            ExpressionAttributeValues: {
+              ":updatedAt": existingUsers.Item.updatedAt,
+            },
+          }),
+        );
+      } catch (err) {
+        if (err instanceof ConditionalCheckFailedException) {
+          console.error("handling conditional check failing gracefully", err);
+
+          await sleep(Math.floor(Math.random() * 5000) + 5000);
+        } else {
+          throw err;
+        }
+      }
+
+      console.log(
+        "updated users to exclude the disconnecting user",
+        event.requestContext.connectionId,
+      );
+
+      successOrFailed = true;
+    } else {
+      console.log("no existing users - doing nothing");
+      successOrFailed = true;
+    }
   }
 
   return {

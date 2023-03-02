@@ -2,6 +2,7 @@ import {
   EventBridgeClient,
   PutEventsCommand,
 } from "@aws-sdk/client-eventbridge";
+import { sleep } from "../../util/sleep";
 
 const client = new EventBridgeClient({});
 
@@ -27,22 +28,12 @@ const COLOURS = [
 const NUM_EVENTS_TO_CREATE = 10;
 
 /**
- * We want to show events coming in live at different times, so we artificially
- * slow down our Lambda function with a sleep.
- *
- * @param timeMs
- */
-function sleep(timeMs: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, timeMs));
-}
-
-/**
  * An easy way for us to send some events with different data.
  */
 function randomProduct() {
   return {
     name: PRODUCTS[Math.floor(Math.random() * PRODUCTS.length)],
-    priceInPence: Math.random() * 10000,
+    priceInPence: Math.floor(Math.random() * 10000),
     colour: COLOURS[Math.floor(Math.random() * COLOURS.length)],
   };
 }
